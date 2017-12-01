@@ -26,6 +26,13 @@ from sklearn.neighbors import LSHForest
 from sklearn.neighbors import NearestNeighbors
 
 
+def test_lsh_forest_deprecation():
+    assert_warns_message(DeprecationWarning,
+                         "LSHForest has poor performance and has been "
+                         "deprecated in 0.19. It will be removed "
+                         "in version 0.21.", LSHForest)
+
+
 def test_neighbors_accuracy_with_n_candidates():
     # Checks whether accuracy increases as `n_candidates` increases.
     n_candidates_values = np.array([.1, 50, 500])
@@ -38,8 +45,9 @@ def test_neighbors_accuracy_with_n_candidates():
     X = rng.rand(n_samples, n_features)
 
     for i, n_candidates in enumerate(n_candidates_values):
-        lshf = LSHForest(n_candidates=n_candidates)
-        lshf.fit(X)
+        lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+            n_candidates=n_candidates, random_state=0)
+        ignore_warnings(lshf.fit)(X)
         for j in range(n_iter):
             query = X[rng.randint(0, n_samples)].reshape(1, -1)
 
@@ -54,6 +62,7 @@ def test_neighbors_accuracy_with_n_candidates():
 
         accuracies[i] = accuracies[i] / float(n_iter)
     # Sorted accuracies should be equal to original accuracies
+    print('accuracies:', accuracies)
     assert_true(np.all(np.diff(accuracies) >= 0),
                 msg="Accuracies are not non-decreasing.")
     # Highest accuracy should be strictly greater than the lowest
@@ -73,8 +82,9 @@ def test_neighbors_accuracy_with_n_estimators():
     X = rng.rand(n_samples, n_features)
 
     for i, t in enumerate(n_estimators):
-        lshf = LSHForest(n_candidates=500, n_estimators=t)
-        lshf.fit(X)
+        lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+            n_candidates=500, n_estimators=t)
+        ignore_warnings(lshf.fit)(X)
         for j in range(n_iter):
             query = X[rng.randint(0, n_samples)].reshape(1, -1)
             neighbors = lshf.kneighbors(query, n_neighbors=n_points,
@@ -107,11 +117,12 @@ def test_kneighbors():
     rng = np.random.RandomState(42)
     X = rng.rand(n_samples, n_features)
 
-    lshf = LSHForest(min_hash_match=0)
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        min_hash_match=0)
     # Test unfitted estimator
     assert_raises(ValueError, lshf.kneighbors, X[0])
 
-    lshf.fit(X)
+    ignore_warnings(lshf.fit)(X)
 
     for i in range(n_iter):
         n_neighbors = rng.randint(0, n_samples)
@@ -158,11 +169,11 @@ def test_radius_neighbors():
     rng = np.random.RandomState(42)
     X = rng.rand(n_samples, n_features)
 
-    lshf = LSHForest()
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)()
     # Test unfitted estimator
     assert_raises(ValueError, lshf.radius_neighbors, X[0])
 
-    lshf.fit(X)
+    ignore_warnings(lshf.fit)(X)
 
     for i in range(n_iter):
         # Select a random point in the dataset as the query
@@ -218,6 +229,7 @@ def test_radius_neighbors():
                                      sorted_dists_approx)))
 
 
+@ignore_warnings
 def test_radius_neighbors_boundary_handling():
     X = [[0.999, 0.001], [0.5, 0.5], [0, 1.], [-1., 0.001]]
     n_points = len(X)
@@ -228,7 +240,8 @@ def test_radius_neighbors_boundary_handling():
 
     # Build a LSHForest model with hyperparameter values that always guarantee
     # exact results on this toy dataset.
-    lsfh = LSHForest(min_hash_match=0, n_candidates=n_points).fit(X)
+    lsfh = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        min_hash_match=0, n_candidates=n_points, random_state=42).fit(X)
 
     # define a query aligned with the first axis
     query = [[1., 0.]]
@@ -264,7 +277,7 @@ def test_radius_neighbors_boundary_handling():
     assert_array_almost_equal(np.sort(exact_dists[0]), dists[:-1])
     assert_array_almost_equal(np.sort(approx_dists[0]), dists[:-1])
 
-    # If we perform the same query with a slighltly lower radius, the third
+    # If we perform the same query with a slightly lower radius, the third
     # point of the dataset that lay on the boundary of the previous query
     # is now rejected:
     eps = np.finfo(np.float64).eps
@@ -285,8 +298,8 @@ def test_distances():
     rng = np.random.RandomState(42)
     X = rng.rand(n_samples, n_features)
 
-    lshf = LSHForest()
-    lshf.fit(X)
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)()
+    ignore_warnings(lshf.fit)(X)
 
     for i in range(n_iter):
         n_neighbors = rng.randint(0, n_samples)
@@ -311,8 +324,9 @@ def test_fit():
     rng = np.random.RandomState(42)
     X = rng.rand(n_samples, n_features)
 
-    lshf = LSHForest(n_estimators=n_estimators)
-    lshf.fit(X)
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        n_estimators=n_estimators)
+    ignore_warnings(lshf.fit)(X)
 
     # _input_array = X
     assert_array_equal(X, lshf._fit_X)
@@ -331,7 +345,7 @@ def test_fit():
 
 
 def test_partial_fit():
-    # Checks whether inserting array is consitent with fitted data.
+    # Checks whether inserting array is consistent with fitted data.
     # `partial_fit` method should set all attribute values correctly.
     n_samples = 12
     n_samples_partial_fit = 3
@@ -340,19 +354,19 @@ def test_partial_fit():
     X = rng.rand(n_samples, n_features)
     X_partial_fit = rng.rand(n_samples_partial_fit, n_features)
 
-    lshf = LSHForest()
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)()
 
     # Test unfitted estimator
-    lshf.partial_fit(X)
+    ignore_warnings(lshf.partial_fit)(X)
     assert_array_equal(X, lshf._fit_X)
 
-    lshf.fit(X)
+    ignore_warnings(lshf.fit)(X)
 
     # Insert wrong dimension
     assert_raises(ValueError, lshf.partial_fit,
                   np.random.randn(n_samples_partial_fit, n_features - 1))
 
-    lshf.partial_fit(X_partial_fit)
+    ignore_warnings(lshf.partial_fit)(X_partial_fit)
 
     # size of _input_array = samples + 1 after insertion
     assert_equal(lshf._fit_X.shape[0],
@@ -377,9 +391,10 @@ def test_hash_functions():
     rng = np.random.RandomState(42)
     X = rng.rand(n_samples, n_features)
 
-    lshf = LSHForest(n_estimators=n_estimators,
-                     random_state=rng.randint(0, np.iinfo(np.int32).max))
-    lshf.fit(X)
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        n_estimators=n_estimators,
+        random_state=rng.randint(0, np.iinfo(np.int32).max))
+    ignore_warnings(lshf.fit)(X)
 
     hash_functions = []
     for i in range(n_estimators):
@@ -404,8 +419,9 @@ def test_candidates():
     X_test = np.array([7, 10, 3], dtype=np.float32).reshape(1, -1)
 
     # For zero candidates
-    lshf = LSHForest(min_hash_match=32)
-    lshf.fit(X_train)
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        min_hash_match=32)
+    ignore_warnings(lshf.fit)(X_train)
 
     message = ("Number of candidates is not sufficient to retrieve"
                " %i neighbors with"
@@ -418,8 +434,9 @@ def test_candidates():
     assert_equal(distances.shape[1], 3)
 
     # For candidates less than n_neighbors
-    lshf = LSHForest(min_hash_match=31)
-    lshf.fit(X_train)
+    lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        min_hash_match=31)
+    ignore_warnings(lshf.fit)(X_train)
 
     message = ("Number of candidates is not sufficient to retrieve"
                " %i neighbors with"
@@ -440,8 +457,9 @@ def test_graphs():
 
     for n_samples in n_samples_sizes:
         X = rng.rand(n_samples, n_features)
-        lshf = LSHForest(min_hash_match=0)
-        lshf.fit(X)
+        lshf = ignore_warnings(LSHForest, category=DeprecationWarning)(
+            min_hash_match=0)
+        ignore_warnings(lshf.fit)(X)
 
         kneighbors_graph = lshf.kneighbors_graph(X)
         radius_neighbors_graph = lshf.radius_neighbors_graph(X)
@@ -457,8 +475,10 @@ def test_sparse_input():
     #       The test should succeed regardless.
     X1 = sp.rand(50, 100)
     X2 = sp.rand(10, 100)
-    forest_sparse = LSHForest(radius=1, random_state=0).fit(X1)
-    forest_dense = LSHForest(radius=1, random_state=0).fit(X1.A)
+    forest_sparse = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        radius=1, random_state=0).fit(X1)
+    forest_dense = ignore_warnings(LSHForest, category=DeprecationWarning)(
+        radius=1, random_state=0).fit(X1.A)
 
     d_sparse, i_sparse = forest_sparse.kneighbors(X2, return_distance=True)
     d_dense, i_dense = forest_dense.kneighbors(X2.A, return_distance=True)

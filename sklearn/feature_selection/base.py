@@ -17,7 +17,7 @@ from ..externals import six
 
 class SelectorMixin(six.with_metaclass(ABCMeta, TransformerMixin)):
     """
-    Tranformer mixin that performs feature selection given a support mask
+    Transformer mixin that performs feature selection given a support mask
 
     This mixin provides a feature selector implementation with `transform` and
     `inverse_transform` functionality given an implementation of
@@ -81,7 +81,7 @@ class SelectorMixin(six.with_metaclass(ABCMeta, TransformerMixin)):
             return np.empty(0).reshape((X.shape[0], 0))
         if len(mask) != X.shape[1]:
             raise ValueError("X has a different shape than during fitting.")
-        return check_array(X, accept_sparse='csr')[:, safe_mask(X, mask)]
+        return X[:, safe_mask(X, mask)]
 
     def inverse_transform(self, X):
         """

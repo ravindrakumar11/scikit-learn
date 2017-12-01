@@ -1,9 +1,3 @@
-try:
-    # Python 2 compat
-    reload
-except NameError:
-    # Regular Python 3+ import
-    from importlib import reload
 import numpy as np
 
 from sklearn.utils.testing import assert_array_equal
@@ -11,15 +5,18 @@ from sklearn.utils.testing import assert_array_almost_equal
 from sklearn.utils.testing import assert_equal
 from sklearn.utils.testing import assert_almost_equal
 from sklearn.utils.testing import assert_true
+from sklearn.utils.testing import assert_false
 from sklearn.utils.testing import assert_raises
 from sklearn.utils.testing import assert_raise_message
 from sklearn.utils.testing import assert_warns
+from sklearn.utils.testing import assert_warns_message
 from sklearn.utils.testing import assert_greater
 from sklearn.utils.testing import ignore_warnings
 
 from sklearn.datasets import make_blobs
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.discriminant_analysis import _cov
 
 
 # Data is just 6 separable points in the plane
@@ -32,7 +29,7 @@ X1 = np.array([[-2, ], [-1, ], [-1, ], [1, ], [1, ], [2, ]], dtype='f')
 
 # Data is just 9 separable points in the plane
 X6 = np.array([[0, 0], [-2, -2], [-2, -1], [-1, -1], [-1, -2],
-              [1, 3], [1, 2], [2, 1], [2, 2]])
+               [1, 3], [1, 2], [2, 1], [2, 2]])
 y6 = np.array([1, 1, 1, 1, 1, 2, 2, 2, 2])
 y7 = np.array([1, 2, 3, 2, 3, 1, 2, 3, 1])
 
@@ -111,7 +108,7 @@ def test_lda_priors():
     priors = np.array([0.5, 0.6])
     prior_norm = np.array([0.45, 0.55])
     clf = LinearDiscriminantAnalysis(priors=priors)
-    clf.fit(X, y)
+    assert_warns(UserWarning, clf.fit, X, y)
     assert_array_almost_equal(clf.priors_, prior_norm, 2)
 
 
@@ -152,16 +149,29 @@ def test_lda_transform():
 
 
 def test_lda_explained_variance_ratio():
-    # Test if the sum of the normalized eigen vectors values equals 1
-    n_features = 2
-    n_classes = 2
-    n_samples = 1000
-    X, y = make_blobs(n_samples=n_samples, n_features=n_features,
-                      centers=n_classes, random_state=11)
+    # Test if the sum of the normalized eigen vectors values equals 1,
+    # Also tests whether the explained_variance_ratio_ formed by the
+    # eigen solver is the same as the explained_variance_ratio_ formed
+    # by the svd solver
+
+    state = np.random.RandomState(0)
+    X = state.normal(loc=0, scale=100, size=(40, 20))
+    y = state.randint(0, 3, size=(40,))
 
     clf_lda_eigen = LinearDiscriminantAnalysis(solver="eigen")
     clf_lda_eigen.fit(X, y)
     assert_almost_equal(clf_lda_eigen.explained_variance_ratio_.sum(), 1.0, 3)
+    assert_equal(clf_lda_eigen.explained_variance_ratio_.shape, (2,),
+                 "Unexpected length for explained_variance_ratio_")
+
+    clf_lda_svd = LinearDiscriminantAnalysis(solver="svd")
+    clf_lda_svd.fit(X, y)
+    assert_almost_equal(clf_lda_svd.explained_variance_ratio_.sum(), 1.0, 3)
+    assert_equal(clf_lda_svd.explained_variance_ratio_.shape, (2,),
+                 "Unexpected length for explained_variance_ratio_")
+
+    assert_array_almost_equal(clf_lda_svd.explained_variance_ratio_,
+                              clf_lda_eigen.explained_variance_ratio_)
 
 
 def test_lda_orthogonality():
@@ -215,6 +225,38 @@ def test_lda_scaling():
                      'using covariance: %s' % solver)
 
 
+def test_lda_store_covariance():
+    # Test for slover 'lsqr' and 'eigen'
+    # 'store_covariance' has no effect on 'lsqr' and 'eigen' solvers
+    for solver in ('lsqr', 'eigen'):
+        clf = LinearDiscriminantAnalysis(solver=solver).fit(X6, y6)
+        assert_true(hasattr(clf, 'covariance_'))
+
+        # Test the actual attribute:
+        clf = LinearDiscriminantAnalysis(solver=solver,
+                                         store_covariance=True).fit(X6, y6)
+        assert_true(hasattr(clf, 'covariance_'))
+
+        assert_array_almost_equal(
+            clf.covariance_,
+            np.array([[0.422222, 0.088889], [0.088889, 0.533333]])
+        )
+
+    # Test for SVD slover, the default is to not set the covariances_ attribute
+    clf = LinearDiscriminantAnalysis(solver='svd').fit(X6, y6)
+    assert_false(hasattr(clf, 'covariance_'))
+
+    # Test the actual attribute:
+    clf = LinearDiscriminantAnalysis(solver=solver,
+                                     store_covariance=True).fit(X6, y6)
+    assert_true(hasattr(clf, 'covariance_'))
+
+    assert_array_almost_equal(
+        clf.covariance_,
+        np.array([[0.422222, 0.088889], [0.088889, 0.533333]])
+    )
+
+
 def test_qda():
     # QDA classification.
     # This checks that QDA implements fit and predict and returns
@@ -254,24 +296,38 @@ def test_qda_priors():
     assert_greater(n_pos2, n_pos)
 
 
-def test_qda_store_covariances():
+def test_qda_store_covariance():
     # The default is to not set the covariances_ attribute
     clf = QuadraticDiscriminantAnalysis().fit(X6, y6)
-    assert_true(not hasattr(clf, 'covariances_'))
+    assert_false(hasattr(clf, 'covariance_'))
 
     # Test the actual attribute:
-    clf = QuadraticDiscriminantAnalysis(store_covariances=True).fit(X6, y6)
-    assert_true(hasattr(clf, 'covariances_'))
+    clf = QuadraticDiscriminantAnalysis(store_covariance=True).fit(X6, y6)
+    assert_true(hasattr(clf, 'covariance_'))
 
     assert_array_almost_equal(
-        clf.covariances_[0],
+        clf.covariance_[0],
         np.array([[0.7, 0.45], [0.45, 0.7]])
     )
 
     assert_array_almost_equal(
-        clf.covariances_[1],
+        clf.covariance_[1],
         np.array([[0.33333333, -0.33333333], [-0.33333333, 0.66666667]])
     )
+
+
+def test_qda_deprecation():
+    # Test the deprecation
+    clf = QuadraticDiscriminantAnalysis(store_covariances=True)
+    assert_warns_message(DeprecationWarning, "'store_covariances' was renamed"
+                         " to store_covariance in version 0.19 and will be "
+                         "removed in 0.21.", clf.fit, X, y)
+
+    # check that covariance_ (and covariances_ with warning) is stored
+    assert_warns_message(DeprecationWarning, "Attribute covariances_ was "
+                         "deprecated in version 0.19 and will be removed "
+                         "in 0.21. Use covariance_ instead", getattr, clf,
+                         'covariances_')
 
 
 def test_qda_regularization():
@@ -297,23 +353,15 @@ def test_qda_regularization():
     assert_array_equal(y_pred5, y5)
 
 
-def test_deprecated_lda_qda_deprecation():
-    def import_lda_module():
-        import sklearn.lda
-        # ensure that we trigger DeprecationWarning even if the sklearn.lda
-        # was loaded previously by another test.
-        reload(sklearn.lda)
-        return sklearn.lda
+def test_covariance():
+    x, y = make_blobs(n_samples=100, n_features=5,
+                      centers=1, random_state=42)
 
-    lda = assert_warns(DeprecationWarning, import_lda_module)
-    assert lda.LDA is LinearDiscriminantAnalysis
+    # make features correlated
+    x = np.dot(x, np.arange(x.shape[1] ** 2).reshape(x.shape[1], x.shape[1]))
 
-    def import_qda_module():
-        import sklearn.qda
-        # ensure that we trigger DeprecationWarning even if the sklearn.qda
-        # was loaded previously by another test.
-        reload(sklearn.qda)
-        return sklearn.qda
+    c_e = _cov(x, 'empirical')
+    assert_almost_equal(c_e, c_e.T)
 
-    qda = assert_warns(DeprecationWarning, import_qda_module)
-    assert qda.QDA is QuadraticDiscriminantAnalysis
+    c_s = _cov(x, 'auto')
+    assert_almost_equal(c_s, c_s.T)
