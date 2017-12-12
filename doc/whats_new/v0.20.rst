@@ -60,11 +60,22 @@ Preprocessing
   the maximum value in the features. :issue:`9151` by
   :user:`Vighnesh Birodkar <vighneshbirodkar>` and `Joris Van den Bossche`_.
 
+- Added :class:`preprocessing.PowerTransformer`, which implements the Box-Cox
+  power transformation, allowing users to map data from any distribution to a
+  Gaussian distribution. This is useful as a variance-stabilizing transformation
+  in situations where normality and homoscedasticity are desirable.
+  :issue:`10210` by :user:`Eric Chang <ericchang00>` and
+  :user:`Maniteja Nandana <maniteja123>`.
+
+
 Model evaluation
 
 - Added the :func:`metrics.balanced_accuracy_score` metric and a corresponding
   ``'balanced_accuracy'`` scorer for binary classification.
   :issue:`8066` by :user:`xyguo` and :user:`Aman Dalmia <dalmia>`.
+
+- Added :class:`multioutput.RegressorChain` for multi-target
+  regression. :issue:`9257` by :user:`Kumar Ashutosh <thechargedneutron>`.
 
 Enhancements
 ............
@@ -105,6 +116,15 @@ Model evaluation and meta-estimators
 - A scorer based on :func:`metrics.brier_score_loss` is also available.
   :issue:`9521` by :user:`Hanmin Qin <qinhanmin2014>`.
 
+- The default of ``iid`` parameter of :class:`model_selection.GridSearchCV`
+  and :class:`model_selection.RandomizedSearchCV` will change from ``True`` to
+  ``False`` in version 0.22 to correspond to the standard definition of
+  cross-validation, and the parameter will be removed in version 0.24
+  altogether. This parameter is of greatest practical significance where the
+  sizes of different test sets in cross-validation were very unequal, i.e. in
+  group-based CV strategies. :issue:`9085` by :user:`Laurent Direr <ldirer>`
+  and `Andreas Müller`_.
+
 Metrics
 
 - :func:`metrics.roc_auc_score` now supports binary ``y_true`` other than
@@ -115,6 +135,12 @@ Linear, kernelized and related models
 - Deprecate ``random_state`` parameter in :class:`svm.OneClassSVM` as the
   underlying implementation is not random.
   :issue:`9497` by :user:`Albert Thomas <albertcthomas>`.
+
+Miscellaneous
+
+- Add ``filename`` attribute to datasets that have a CSV file.
+  :issue:`9101` by :user:`alex-33 <alex-33>`
+  and :user:`Maskani Filali Mohamed <maskani-moh>`.
 
 Bug fixes
 .........
@@ -223,15 +249,13 @@ Feature Extraction
   throw an exception if ``max_patches`` was greater than or equal to the number
   of all possible patches rather than simply returning the number of possible
   patches. :issue:`10100` by :user:`Varun Agrawal <varunagrawal>`
-  
+
 - Fixed a bug in :class:`feature_extraction.text.CountVectorizer`,
   :class:`feature_extraction.text.TfidfVectorizer`,
   :class:`feature_extraction.text.HashingVectorizer` to support 64 bit sparse
   array indexing necessary to process large datasets with more than 2·10⁹ tokens
   (words or n-grams). :issue:`9147` by :user:`Claes-Fredrik Mannby <mannby>`
   and `Roman Yurchak`_.
-
-	
 
 API changes summary
 -------------------
@@ -241,6 +265,10 @@ Linear, kernelized and related models
 - Deprecate ``random_state`` parameter in :class:`svm.OneClassSVM` as the
   underlying implementation is not random.
   :issue:`9497` by :user:`Albert Thomas <albertcthomas>`.
+
+- Deprecate ``positive=True`` option in :class:`linear_model.Lars` as the
+  underlying implementation is broken. Use :class:`linear_model.Lasso` instead.
+  :issue:`9837` by `Alexandre Gramfort`_.
 
 Metrics
 
