@@ -3,7 +3,7 @@ The :mod:`sklearn.metrics` module includes score functions, performance metrics
 and pairwise metrics and distance computations.
 """
 
-
+from .ranking import new_auc
 from .ranking import auc
 from .ranking import average_precision_score
 from .ranking import coverage_error
@@ -70,6 +70,7 @@ __all__ = [
     'accuracy_score',
     'adjusted_mutual_info_score',
     'adjusted_rand_score',
+    'new_auc',
     'auc',
     'average_precision_score',
     'balanced_accuracy_score',

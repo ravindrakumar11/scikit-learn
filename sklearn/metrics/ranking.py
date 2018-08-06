@@ -37,6 +37,8 @@ from ..preprocessing import label_binarize
 
 from .base import _average_binary_score
 
+def new_auc():
+    print('I am learning to implement it!')
 
 def auc(x, y, reorder='deprecated'):
     """Compute Area Under the Curve (AUC) using the trapezoidal rule
